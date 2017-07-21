@@ -77,28 +77,26 @@ def print_match_list(l):
 
 if __name__ == "__main__":
 
-    num_args = len(sys.argv)
-
-    if num_args != 4:
-        raise ArgumentException
-        sys.exit()
-
-
-keyword = sys.argv[1]
-keyword_replace = sys.argv[2]
-path = sys.argv[3]
-
-fl = match_keyword(keyword, keyword_replace, path)
-
-print_match_list(fl)
-
-answer = input("Change all? (y/N)")
-
-if answer is 'y':
     try:
-        list_renamed = rename_items(fl, keyword, keyword_replace)
-    except FileNotFoundError:
-        # Found a directory. The path names changed, so we need to
-        # regenerate the list
+        keyword = sys.argv[1]
+        keyword_replace = sys.argv[2]
+        path = sys.argv[3]
+    except IndexError:
+        keyword = input("Keyword: ")
+        keyword_replace = input("Keyword replacement: ")
+        path = input("Path: ")
+
+    fl = match_keyword(keyword, keyword_replace, path)
+
+    print_match_list(fl)
+
+    answer = input("Change all? (y/N)")
+
+    if answer is 'y':
+        try:
+            list_renamed = rename_items(fl, keyword, keyword_replace)
+        except FileNotFoundError:
+            # Found a directory. The path names changed, so we need to
+            # regenerate the list
             fl = match_keyword(keyword, keyword_replace, path)
             list_renamed = rename_items(fl, keyword, keyword_replace)
