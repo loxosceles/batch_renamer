@@ -14,7 +14,6 @@ PATTERN_NEW: The pattern with which the old pattern will be replaced
 PATH:        Path which will be searched
 """
 
-
 class ArgumentException(Exception):
     """Exception raised when wrong number of arguments is given"""
     def __init__(self, msg=None):
