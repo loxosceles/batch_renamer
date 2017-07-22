@@ -2,47 +2,46 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import re
-
-usage_msg = """
-
-USAGE: batch_renamer PATTERN_OLD PATTERN_NEW PATH
-
-PATTERN_OLD: The pattern you are searching for and want to change
-PATTERN_NEW: The pattern with which the old pattern will be replaced
-PATH:        Path which will be searched
-"""
-
-class ArgumentException(Exception):
-    """Exception raised when wrong number of arguments is given"""
-    def __init__(self, msg=None):
-        if msg is None:
-            # Default  error message
-            msg = usage_msg
-        super().__init__(msg)
-        self.msg = msg
+import argparse
 
 
-def match_keyword(kw, kwr, root_path):
+def match_keyword(old_pattern, new_pattern, root_path):
     """ Returns: file list of matched items
         Create file list of matched items
     """
     file_list = []
+    dir_list = []
 
-    regex = re.compile(r'.*([^a-zA-Z]|\b)%s[^a-zA-Z].*' % re.escape(kw))
+    regex = re.compile(r'.*([^a-zA-Z]|\b)%s([^a-zA-Z]|\b).*' %
+                       re.escape(old_pattern))
 
     for root, dirs, files in os.walk(root_path):
-
-        if regex.match(root):
-            file_list.append(root)
+        # print("Debugging")
+        # print("root", root)
+        # print("dirs: ", str(dirs))
+        # print("files: ", files)
 
         for file in files:
 
             if regex.match(file):
                 file_list.append(root + '/' + file)
 
-    return file_list
+        if regex.match(os.path.basename(root)):
+            # file_list.append(root)
+            print("\nFound directory.")
+            print(root)
+            confirm = input(" Rename? (y/N): ")
+
+            if confirm == 'y':
+                dir_list.append(root)
+
+    return file_list, dir_list
+
+
+def revreplace(string, old, new, occurrence):
+    li = string.rsplit(old, occurrence)
+    return new.join(li)
 
 
 def rename_items(item_list, old_pattern, new_pattern):
@@ -51,7 +50,7 @@ def rename_items(item_list, old_pattern, new_pattern):
     """
     modified_list = []
     for item in item_list:
-        renamed_item = re.sub(re.escape(old_pattern), new_pattern, item)
+        renamed_item = revreplace(item, old_pattern, new_pattern, 1)
         modified_list.append(renamed_item)
         print_items_to_be_renamed(item, renamed_item)
         os.rename(item, renamed_item)
@@ -60,42 +59,55 @@ def rename_items(item_list, old_pattern, new_pattern):
 
 
 def print_items_to_be_renamed(item, ren_item):
-        print()
-        print(item)
-        print("TO:")
-        print(ren_item)
-        print()
+    print("\nFrom: " + item)
+    print("To:  " + ren_item + "\n")
 
 
-def print_match_list(l):
+def print_match_list(file_list, path):
     print()
-    for item in l:
-        print(os.path.basename(item))
+    for item in file_list:
+        print(item.lstrip(path))
     print()
 
 
 if __name__ == "__main__":
 
-    try:
-        keyword = sys.argv[1]
-        keyword_replace = sys.argv[2]
-        path = sys.argv[3]
-    except IndexError:
+    parser = argparse.ArgumentParser(
+        description='Replace file names under given path recursively')
+
+    parser.add_argument('-k', '--keyword',
+                        help='String to be replaced')
+    parser.add_argument('-r', '--replacement',
+                        help='String replacing keyword')
+    parser.add_argument('-p', '--path',
+                        help='Path to be searched', required=True)
+    args = vars(parser.parse_args())
+
+    if args['keyword']:
+        keyword = args['keyword']
+    else:
         keyword = input("Keyword: ")
-        keyword_replace = input("Keyword replacement: ")
-        path = input("Path: ")
+    if args['replacement']:
+        keyword_replace = args['replacement']
+    else:
+        keyword_replace = input("Keyword Replacement: ")
 
-    fl = match_keyword(keyword, keyword_replace, path)
+    if args['path']:
+        path = args['path']
 
-    print_match_list(fl)
+    # Make sure we don't end up with duplicated slashes
+    path = path.rstrip('/')
 
-    answer = input("Change all? (y/N)")
+    files, dirs = match_keyword(keyword, keyword_replace, path)
 
-    if answer is 'y':
-        try:
-            list_renamed = rename_items(fl, keyword, keyword_replace)
-        except FileNotFoundError:
-            # Found a directory. The path names changed, so we need to
-            # regenerate the list
-            fl = match_keyword(keyword, keyword_replace, path)
-            list_renamed = rename_items(fl, keyword, keyword_replace)
+    if files:
+        print_match_list(files, path)
+
+        answer = input("Change all? (y/N): ")
+
+        if answer is 'y':
+            list_renamed = rename_items(files, keyword, keyword_replace)
+
+    if dirs:
+        list_renamed_dirs = rename_items(dirs, keyword, keyword_replace)
+        print("Directories Renamed: ", list_renamed_dirs)
